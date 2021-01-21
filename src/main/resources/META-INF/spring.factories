@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.labbol.product.dataferry.core.configuration.DataFerryCoreConfiguration,\
+com.labbol.product.dataferry.core.configuration.xml.XMLDataFerryConfig
