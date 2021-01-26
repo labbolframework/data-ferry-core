@@ -15,7 +15,6 @@ public interface DataObjectConvertor {
 	/**
 	 * 根据对象、数据对象源创建模型数据对象
 	 * 
-	 * @param <M>              model type
 	 * @param model            模型对象
 	 * @param dataObjectSource 数据对象源
 	 * @return 模型数据对象
