@@ -96,4 +96,13 @@ public interface DataObjectSource {
 	 */
 	List<? extends DataObject> getDataObjects();
 
+	/**
+	 * 是否不存在数据对象
+	 * 
+	 * @author PengFei
+	 * @date 2021年1月26日下午10:05:00
+	 * @return <code>true</code> 不存在数据对象
+	 */
+	boolean isEmpty();
+
 }

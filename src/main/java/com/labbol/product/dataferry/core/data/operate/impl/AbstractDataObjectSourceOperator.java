@@ -66,6 +66,10 @@ public abstract class AbstractDataObjectSourceOperator implements DataObjectSour
 	protected void _operate(DataObjectGroup dataObjectGroup, DataObjectSource dataObjectSource,
 			SqlModelService modelService) throws DataObjectSourceOperateException {
 		Objects.requireNonNull(dataObjectGroup);
+//		String tableName = dataObjectSource.getTableName();
+//		if(tableName.startsWith("co_")) {
+//			System.out.println(tableName);
+//		}
 		DataObjectSourceOperateProperties dataObjectSourceOperateProperties = new DataObjectSourceOperateProperties(
 				dataObjectSource, modelService);
 		DataObjectOperationType dataObjectOperationType = dataObjectSource.getDataObjectOperationType();

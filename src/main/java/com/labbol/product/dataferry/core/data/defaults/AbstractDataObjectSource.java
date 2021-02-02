@@ -31,6 +31,11 @@ public abstract class AbstractDataObjectSource implements DataObjectSource {
 	}
 
 	@Override
+	public boolean isEmpty() {
+		return dataObjects.isEmpty();
+	}
+
+	@Override
 	public DataObjectSourceProperties getDataObjectSourceProperties() {
 		return dataObjectSourceProperties;
 	}

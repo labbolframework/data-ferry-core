@@ -4,6 +4,7 @@ import org.yelong.commons.util.Dates;
 
 import com.labbol.product.dataferry.core.data.DataObject;
 import com.labbol.product.dataferry.core.data.DataObjectOperationType;
+import com.labbol.product.dataferry.core.data.DataObjectSource;
 import com.labbol.product.dataferry.core.data.attribute.DataObjectGroup;
 import com.labbol.product.dataferry.core.data.attribute.DataObjectOrdinaryAttributeManager;
 
@@ -22,15 +23,16 @@ public class DefaultDataObjectSourceOperator extends AbstractDataObjectSourceOpe
 	@Override
 	protected void beforeInsert(DataObjectSourceOperateProperties dataObjectSourceOperateProperties,
 			DataObjectGroup dataObjectGroup, DataObject dataObject) {
+		DataObjectSource dataObjectSource = dataObject.getDeclaringDataObjectSource();
 		// 如果处理类型是 INSERT 则强制修改 ID值。否则只有在ID值不存在时才进行设置
-		DataObjectOperationType dataObjectOperationType = dataObject.getDeclaringDataObjectSource()
-				.getDataObjectOperationType();
+		DataObjectOperationType dataObjectOperationType = dataObjectSource.getDataObjectOperationType();
+		String primaryKey = dataObjectSource.getPrimaryKey();
 		if (dataObjectOperationType == DataObjectOperationType.INSERT) {
-			dataObject.addOrdinaryAttribute(DEFAUL_PRIMARYKEY, DreamFirstBaseModelIDGenerator.getUUID());
+			dataObject.addOrdinaryAttribute(primaryKey, DreamFirstBaseModelIDGenerator.getUUID());
 		} else {
-			Object id = dataObject.getOrdinaryAttributeValue(DEFAUL_PRIMARYKEY);
-			if (null == id) {
-				dataObject.addOrdinaryAttribute(DEFAUL_PRIMARYKEY, DreamFirstBaseModelIDGenerator.getUUID());
+			Object primaryKeyValue = dataObject.getOrdinaryAttributeValue(primaryKey);
+			if (null == primaryKeyValue) {
+				dataObject.addOrdinaryAttribute(primaryKey, DreamFirstBaseModelIDGenerator.getUUID());
 			}
 		}
 		Object createTime = dataObject.getOrdinaryAttributeValue(DreamFirstBaseModelable.CREATETIME);
