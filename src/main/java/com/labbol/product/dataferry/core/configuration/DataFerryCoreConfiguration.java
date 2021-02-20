@@ -77,7 +77,8 @@ public class DataFerryCoreConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public DataFerry dataFerry(DataFileResolver dataFileResolver, DataObjectSourceOperator dataObjectSourceOperator) {
+	public DataFerry defaultDataFerry(DataFileResolver dataFileResolver,
+			DataObjectSourceOperator dataObjectSourceOperator) {
 		return new DefaultDataFerry(dataFileResolver, dataObjectSourceOperator);
 	}
 

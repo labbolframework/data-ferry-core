@@ -17,7 +17,7 @@ public interface DataObjectSourceOperator {
 	 * @return 操作结果
 	 * @throws DataObjectSourceOperateException 数据对象源操作异常
 	 */
-	void operate(DataObjectSource dataObjectSource, SqlModelService modelService)
+	DataObjectSourceOperateResult operate(DataObjectSource dataObjectSource, SqlModelService modelService)
 			throws DataObjectSourceOperateException;
 
 }

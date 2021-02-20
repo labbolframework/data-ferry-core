@@ -21,17 +21,17 @@ public class DataObjectSources {
 	 * 
 	 * @author PengFei
 	 * @date 2021年1月26日下午10:13:17
-	 * @param dataObjectSource
+	 * @param dataObjectSource 数据对象源
 	 */
 	public void add(DataObjectSource dataObjectSource) {
-		if (null == dataObjectSources) {
+		if (null == dataObjectSource) {
 			return;
 		}
 		dataObjectSources.add(dataObjectSource);
 	}
 
 	/**
-	 * @author PengFei 
+	 * @author PengFei
 	 * @date 2021年1月26日下午10:15:13
 	 * @see DataObjectSourceUtils#isEmptyDataObject(List)
 	 */

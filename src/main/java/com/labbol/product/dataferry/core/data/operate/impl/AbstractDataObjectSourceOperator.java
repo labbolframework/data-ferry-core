@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yelong.commons.util.PlaceholderUtilsE;
 import org.yelong.commons.util.StringUtilsEE;
+import org.yelong.core.jdbc.DataBaseOperationType;
 import org.yelong.core.jdbc.dialect.Dialect;
 import org.yelong.core.jdbc.sql.attribute.AttributeSqlFragment;
 import org.yelong.core.jdbc.sql.condition.ConditionalOperator;
@@ -31,7 +32,9 @@ import com.labbol.product.dataferry.core.data.DataObjectSource;
 import com.labbol.product.dataferry.core.data.DataObjectSourceProperties;
 import com.labbol.product.dataferry.core.data.attribute.DataObjectGroup;
 import com.labbol.product.dataferry.core.data.attribute.DataObjectOrdinaryAttributeManager;
+import com.labbol.product.dataferry.core.data.operate.DataObjectOperateResultEntry;
 import com.labbol.product.dataferry.core.data.operate.DataObjectSourceOperateException;
+import com.labbol.product.dataferry.core.data.operate.DataObjectSourceOperateResult;
 import com.labbol.product.dataferry.core.data.operate.DataObjectSourceOperator;
 
 import dream.first.base.model.DreamFirstBaseModelable;
@@ -55,21 +58,30 @@ public abstract class AbstractDataObjectSourceOperator implements DataObjectSour
 	}
 
 	@Override
-	public void operate(DataObjectSource dataObjectSource, SqlModelService modelService)
+	public DataObjectSourceOperateResult operate(DataObjectSource dataObjectSource, SqlModelService modelService)
 			throws DataObjectSourceOperateException {
-		_operate(new DataObjectGroup(), dataObjectSource, modelService);
+		try {
+			return _operate(new DataObjectGroup(), dataObjectSource, modelService);
+		} catch (Exception e) {
+			throw new DataObjectSourceOperateException(e);
+		}
 	}
 
 	/**
 	 * 操作
 	 */
-	protected void _operate(DataObjectGroup dataObjectGroup, DataObjectSource dataObjectSource,
+	protected DataObjectSourceOperateResult _operate(DataObjectGroup dataObjectGroup, DataObjectSource dataObjectSource,
 			SqlModelService modelService) throws DataObjectSourceOperateException {
 		Objects.requireNonNull(dataObjectGroup);
+		// 执行返回的结果
+		DataObjectSourceOperateResult dataObjectSourceOperateResult = new DataObjectSourceOperateResult(
+				dataObjectSource);
+
 //		String tableName = dataObjectSource.getTableName();
 //		if(tableName.startsWith("co_")) {
 //			System.out.println(tableName);
 //		}
+		
 		DataObjectSourceOperateProperties dataObjectSourceOperateProperties = new DataObjectSourceOperateProperties(
 				dataObjectSource, modelService);
 		DataObjectOperationType dataObjectOperationType = dataObjectSource.getDataObjectOperationType();
@@ -82,27 +94,40 @@ public abstract class AbstractDataObjectSourceOperator implements DataObjectSour
 		for (DataObject dataObject : dataObjects) {
 			dataObjectGroup.addDataObject(dataObject);
 			if (!dataObject.isEmptyOrdinaryAttribute()) {
+				DataObjectOperateResultEntry dataObjectOperateResultEntry = null;
 				switch (dataObjectOperationType) {
 				case INSERT:
-					insert(dataObjectSourceOperateProperties, dataObjectGroup, dataObject);
+					dataObjectOperateResultEntry = insert(dataObjectSourceOperateProperties, dataObjectGroup,
+							dataObject);
 					break;
 				case INSERT_UPDATE:
-					insertOrUpdate(dataObjectSourceOperateProperties, dataObjectGroup, dataObject);
+					dataObjectOperateResultEntry = insertOrUpdate(dataObjectSourceOperateProperties, dataObjectGroup,
+							dataObject);
 					break;
 				case INSERT_DELETE:
-					insert(dataObjectSourceOperateProperties, dataObjectGroup, dataObject);
+					dataObjectOperateResultEntry = insert(dataObjectSourceOperateProperties, dataObjectGroup,
+							dataObject);
 					break;
 				}
+				if (null == dataObjectOperateResultEntry) {
+					dataObjectOperateResultEntry = new DataObjectOperateResultEntry(dataObject);
+				}
+				dataObjectSourceOperateResult.addDataObjectOperateResultEntry(dataObjectOperateResultEntry);
 			}
 			if (!dataObject.isEmptyDataObjectSourceAttribute()) {
 				List<? extends DataObjectSource> dataObjectSourceAttributes = dataObject
 						.getDataObjectSourceAttributes();
 				for (DataObjectSource dataObjectSourceAttribute : dataObjectSourceAttributes) {
-					_operate(dataObjectGroup, dataObjectSourceAttribute, modelService);
+					dataObjectSourceOperateResult.addDataObjectSourceOperateResult(
+							_operate(dataObjectGroup, dataObjectSourceAttribute, modelService));
+
 				}
 			}
 		}
+		return dataObjectSourceOperateResult;
 	}
+
+	// ==================================================删除==================================================
 
 	/**
 	 * 删除数据
@@ -139,13 +164,15 @@ public abstract class AbstractDataObjectSourceOperator implements DataObjectSour
 		dataObjectSourceOperateProperties.getModelService().execute(deleteSqlFragment);
 	}
 
+	// ==================================================新增==================================================
+
 	/**
 	 * 插入数据
 	 * 
 	 * @param dataObjectSourceOperateProperties 配置
 	 * @param dataObject                        数据对象
 	 */
-	public void insert(DataObjectSourceOperateProperties dataObjectSourceOperateProperties,
+	public DataObjectOperateResultEntry insert(DataObjectSourceOperateProperties dataObjectSourceOperateProperties,
 			DataObjectGroup dataObjectGroup, DataObject dataObject) {
 		beforeInsert(dataObjectSourceOperateProperties, dataObjectGroup, dataObject);
 		String tableName = dataObjectSourceOperateProperties.getTableName();
@@ -156,6 +183,16 @@ public abstract class AbstractDataObjectSourceOperator implements DataObjectSour
 		InsertSqlFragment insertSqlFragment = dataObjectSourceOperateProperties.getModelSqlFragmentFactory()
 				.createInsertSqlFragment(tableName, attributeSqlFragment);
 		dataObjectSourceOperateProperties.getModelService().execute(insertSqlFragment);
+		// 返回执行结果
+		DataObjectOperateResultEntry dataObjectOperateResultEntry = new DataObjectOperateResultEntry(dataObject);
+		String primaryKey = dataObjectSourceOperateProperties.getPrimaryKey();
+		if (StringUtils.isBlank(primaryKey)) {
+			primaryKey = DEFAUL_PRIMARYKEY;
+		}
+		Object primaryValue = dataObject.getOrdinaryAttributeValue(primaryKey);
+		dataObjectOperateResultEntry.setPrimaryValue(primaryValue);
+		dataObjectOperateResultEntry.setDataBaseOperationType(DataBaseOperationType.INSERT);
+		return dataObjectOperateResultEntry;
 	}
 
 	/**
@@ -170,22 +207,21 @@ public abstract class AbstractDataObjectSourceOperator implements DataObjectSour
 			DataObjectGroup dataObjectGroup, DataObject dataObject) {
 	}
 
+	// ==================================================新增或删除==================================================
+
 	/**
-	 * 新增或者修改数据.这根据
-	 * 
-	 * @param dataObjectSourceOperateProperties
-	 * @param dataObject
+	 * 新增或者修改数据
 	 */
-	public void insertOrUpdate(DataObjectSourceOperateProperties dataObjectSourceOperateProperties,
-			DataObjectGroup dataObjectGroup, DataObject dataObject) {
+	public DataObjectOperateResultEntry insertOrUpdate(
+			DataObjectSourceOperateProperties dataObjectSourceOperateProperties, DataObjectGroup dataObjectGroup,
+			DataObject dataObject) {
 		String primaryKey = dataObjectSourceOperateProperties.getPrimaryKey();
 		if (StringUtils.isBlank(primaryKey)) {
 			primaryKey = DEFAUL_PRIMARYKEY;
 		}
-		Object idValue = dataObject.getOrdinaryAttributeValue(primaryKey);
-		if (null == idValue) {
-			insert(dataObjectSourceOperateProperties, dataObjectGroup, dataObject);
-			return;
+		Object primaryValue = dataObject.getOrdinaryAttributeValue(primaryKey);
+		if (null == primaryValue) {
+			return insert(dataObjectSourceOperateProperties, dataObjectGroup, dataObject);
 		}
 		String tableName = dataObjectSourceOperateProperties.getTableName();
 		ModelConfiguration modelConfiguration = dataObjectSourceOperateProperties.getModelConfiguration();
@@ -193,7 +229,7 @@ public abstract class AbstractDataObjectSourceOperator implements DataObjectSour
 		ModelSqlFragmentFactory modelSqlFragmentFactory = dataObjectSourceOperateProperties
 				.getModelSqlFragmentFactory();
 		// 创建id = ?的条件
-		Condition condition = new Condition(primaryKey, ConditionalOperator.EQUAL, idValue);
+		Condition condition = new Condition(primaryKey, ConditionalOperator.EQUAL, primaryValue);
 		ConditionResolver conditionResolver = modelConfiguration.getConditionResolver();
 		SingleConditionSqlFragment singleConditionSqlFragment = conditionResolver.resolve(condition);
 		// 创建 count SQL
@@ -202,8 +238,7 @@ public abstract class AbstractDataObjectSourceOperator implements DataObjectSour
 		countSqlFragment.setConditionSqlFragment(singleConditionSqlFragment);
 		// 如果记录不存在则改为新增操作
 		if (modelService.execute(countSqlFragment) == 0) {
-			insert(dataObjectSourceOperateProperties, dataObjectGroup, dataObject);
-			return;
+			return insert(dataObjectSourceOperateProperties, dataObjectGroup, dataObject);
 		}
 		beforeUpdate(dataObjectSourceOperateProperties, dataObjectGroup, dataObject);
 		// 如果记录存在则根据条件修改数据
@@ -217,6 +252,12 @@ public abstract class AbstractDataObjectSourceOperator implements DataObjectSour
 				attributeSqlFragment);
 		updateSqlFragment.setConditionSqlFragment(singleConditionSqlFragment);
 		modelService.execute(updateSqlFragment);
+
+		// 返回执行结果
+		DataObjectOperateResultEntry dataObjectOperateResultEntry = new DataObjectOperateResultEntry(dataObject);
+		dataObjectOperateResultEntry.setPrimaryValue(primaryValue);
+		dataObjectOperateResultEntry.setDataBaseOperationType(DataBaseOperationType.UPDATE);
+		return dataObjectOperateResultEntry;
 	}
 
 	/**
